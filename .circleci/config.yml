@@ -1,0 +1,30 @@
+---
+version: 2
+jobs:
+  build:
+    docker:
+      - image: quay.io/freedomofpress/circleci-docker:latest
+    working_directory: ~/msheiny.gnomeshell
+
+    steps:
+      - checkout
+
+      - run:
+          name: Ensure submodules checkedout
+          command: git submodule update --init
+
+      - run:
+          name: Install dependencies
+          command: pip install -r requirements.in
+
+      - setup_remote_docker
+
+      - run:
+          name: Test role
+          command: molecule test
+
+      - store_test_results:
+          path: ~/msheiny.gnomeshell/molecule/default/
+
+      - store_artifacts:
+          path: ~/msheiny.gnomeshell/molecule/default/test-results.xml
