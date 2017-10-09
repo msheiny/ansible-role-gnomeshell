@@ -14,5 +14,7 @@ scenario:
   name: default
 verifier:
   name: testinfra
+  options:
+    junitxml: ./test-results.xml
   lint:
     name: flake8
