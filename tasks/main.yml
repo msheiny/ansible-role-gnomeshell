@@ -1,0 +1,8 @@
+---
+
+- import_tasks: dconf.yml
+  when: gnomeshell_dconf_settings
+  tags: dconf
+
+- import_tasks: extensions.yml
+  tags: extensions

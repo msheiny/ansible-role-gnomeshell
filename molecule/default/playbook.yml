@@ -1,0 +1,21 @@
+---
+- name: Converge
+  hosts: all
+  pre_tasks:
+    - name: Create test user
+      user:
+        name: testuser
+  roles:
+    - role: msheiny.gnome-shell
+  vars:
+    gnomeshell_dconf_settings:
+      /org/gnome/terminal/legacy:
+        mnemonics-enabled: "true"
+        menu-accelerator-enabled: "true"
+      /org/gnome/settings-daemon/plugins/color:
+        night-light-enabled: "true"
+        night-light-schedule-automatic: "true"
+    gnomeshell_extension_list:
+      - num: 442
+        gnome_version: 3.22
+    gnomeshell_user: testuser

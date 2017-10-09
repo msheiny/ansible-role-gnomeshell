@@ -1,0 +1,7 @@
+FROM {{ item.image }}
+
+RUN dnf makecache && \
+    dnf --assumeyes install \
+        python python-devel python2-dnf bash sudo \
+        libselinux-python dconf gnome-shell \
+    && dnf clean all
