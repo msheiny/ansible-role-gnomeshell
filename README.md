@@ -1,8 +1,10 @@
 # msheiny.gnomeshell
 
-A role to handle two gnome-shell tasks
-    * installing gnome-shell tweak extensions
-    * manipulate gnome dconf settings with a nicely organized dictionary
+[![CircleCI](https://circleci.com/gh/msheiny/ansible-role-gnomeshell.svg?style=svg)](https://circleci.com/gh/msheiny/ansible-role-gnomeshell)
+
+A role to handle two gnome-shell tasks:
+* installing gnome-shell tweak extensions
+* manipulate gnome dconf settings with a nicely organized dictionary
 
 ## Dependencies
 
