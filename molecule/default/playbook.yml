@@ -6,7 +6,7 @@
       user:
         name: testuser
   roles:
-    - role: msheiny.gnome-shell
+    - role: msheiny.gnomeshell
   vars:
     gnomeshell_dconf_settings:
       /org/gnome/terminal/legacy:
