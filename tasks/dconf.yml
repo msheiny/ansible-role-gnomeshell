@@ -11,7 +11,8 @@
           {% set dconf_dict = dict() -%}
             {% for root in gnomeshell_dconf_settings -%}
               {% for key in gnomeshell_dconf_settings[root] -%}
-              {% set x=dconf_dict.__setitem__('/'.join([root,key]),gnomeshell_dconf_settings[root][key]) -%}
+              {% set x=dconf_dict.__setitem__('/'.join([root,key]),
+                                      gnomeshell_dconf_settings[root][key]) -%}
               {%- endfor %}
           {%- endfor %}
           {{ dconf_dict }}
@@ -22,4 +23,5 @@
         value: "{{ item.value }}"
         state: present
       with_dict: "{{ dconf_expanded_dict }}"
+  become: "yes"
   become_user: "{{ gnomeshell_user }}"

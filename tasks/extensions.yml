@@ -5,7 +5,7 @@
 
     - name: Determine default extension path
       set_fact:
-        gnomeshell_default_ext_path: "{{ '/'.join([ansible_user_dir,gnomeshell_extension_path]) }}"
+        gnomeshell_default_ext_path: "{{'/'.join([ansible_user_dir,gnomeshell_extension_path])}}"
 
     - name: Configure Gnome-Shell extensions
       gnome_shell_extension:
@@ -13,8 +13,8 @@
         enabled: "{{ item.enabled|default(true) }}"
         state: "{{ item.state|default('present') }}"
         gnome_version: "{{ item.gnome_ver|default(omit) }}"
-        gnome_extension_path: "{{ item.path|default(gnomeshell_default_ext_path) }}"
+        gnome_extension_path: "{{item.path|default(gnomeshell_default_ext_path)}}"
       with_items: "{{ gnomeshell_extension_list }}"
 
-  become: yes
+  become: "yes"
   become_user: "{{ gnomeshell_user }}"

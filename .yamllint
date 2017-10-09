@@ -1,0 +1,10 @@
+---
+extends: default
+
+ignore: |
+  molecule/
+
+rules:
+  line-length:
+    ignore: |
+      extensions.yml
