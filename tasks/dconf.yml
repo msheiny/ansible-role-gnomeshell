@@ -1,5 +1,9 @@
 ---
 
+- name: Gather facts (as root) to determine package manager to use
+  setup:
+  become: "yes"
+
 - name: Install dconf pre-requisites
   package:
     name: python2-psutil
