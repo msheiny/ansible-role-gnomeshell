@@ -1,4 +1,7 @@
 ---
+gnomeshell_dconf_reqs:
+  - python2-psutil
+
 # Here is an example of feeding in dconf settings. The underlying
 # module is a little weird and below is an example of quoting formats.
 # Notice strings are double quoted - "'string'" but booleans and other

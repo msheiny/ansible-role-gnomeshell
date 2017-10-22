@@ -6,7 +6,8 @@
 
 - name: Install dconf pre-requisites
   package:
-    name: python2-psutil
+    name: "{{ item }}"
+  with_items: "{{ gnomeshell_dconf_reqs }}"
 
 - block:
     - name: Build out list of dictionary items
