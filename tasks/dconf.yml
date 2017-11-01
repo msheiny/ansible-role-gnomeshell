@@ -9,6 +9,10 @@
     name: "{{ item }}"
   with_items: "{{ gnomeshell_dconf_reqs }}"
 
+- name: Gather facts again as non-root to ensure local user detected
+  setup:
+  become: "no"
+
 - block:
     - name: Build out list of dictionary items
       set_fact:
