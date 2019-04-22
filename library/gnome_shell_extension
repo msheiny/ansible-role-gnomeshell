@@ -1,0 +1,225 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
+# (c) 2016, Eduard Angold <https://github.com/eddyhub>
+#
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#
+# * Redistributions of source code must retain the above copyright
+#   notice, this list of conditions and the following disclaimer.
+#
+# * Redistributions in binary form must reproduce the above copyright
+#   notice, this list of conditions and the following disclaimer in the
+#   documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+import urllib.request, urllib.error, urllib.parse
+import json
+import os.path
+import zipfile
+import tempfile
+import ast
+import shutil
+
+DOCUMENTATION = '''
+---
+module: gnome_shell_extension
+author:
+  - "Eduard Angold"
+  - "Patrik Nilsson"
+version_added: "2.2"
+short_description: Manage gnome shell extensions
+description:
+  - Download and install gnome shell extensions.
+options:
+  name:
+    required: true
+    description:
+      - The numeric id of the extension to install.
+  url:
+    required: false
+    default: "https://extensions.gnome.org"
+    description:
+      - The complete URL to the gnome shell extensions website.
+  state:
+    required: false
+    default: "present"
+    description:
+      - The desired state of the extension.
+  enabled:
+    required: false
+    default: null
+    description:
+      - Whether the extension should be enabled or not.
+  gnome_version:
+    required: false
+    description:
+      - The version of gnome to get the correct extension.
+  gnome_extension_path:
+    required: true
+    description:
+      - The path where to install the extension.
+'''
+
+EXAMPLES = '''
+# Download and install Drop Down Terminal
+# https://extensions.gnome.org/extension/442/drop-down-terminal/
+- gnome_shell_extension:
+    name=442
+    gnome_extension_path=/home/edi/.local/share/gnome-shell/extensions/
+'''
+
+
+# ===========================================
+# Module code.
+#
+
+def get_install_state(module, path, uuid):
+    ext = os.path.join(path, uuid, "metadata.json")
+    return os.path.isfile(ext)
+
+def get_enabled_state(module, uuid):
+    return uuid in set(get_enabled_extensions_list(module))
+
+def dbus_run_session(module, args):
+    cmd = [module.get_bin_path('dbus-run-session')]
+    cmd.extend(args)
+    return module.run_command(cmd)
+
+def get_enabled_extensions_list(module):
+    cmd = [module.get_bin_path('gsettings')]
+    cmd.extend(['get', 'org.gnome.shell', 'enabled-extensions'])
+    enabled_extensions_str = module.run_command(cmd)[1]
+
+    # If no extensions are enabled gsettings returns invalid data
+    if not '@as []' in enabled_extensions_str:
+        return ast.literal_eval(enabled_extensions_str)
+    else:
+        return list([])
+
+def set_extensions(module, extension_list):
+    cmd = [module.get_bin_path('gsettings')]
+    cmd.extend(['set', 'org.gnome.shell', 'enabled-extensions'])
+    cmd.append(str(extension_list))
+    return dbus_run_session(module, cmd)
+
+def enable_extension(module, uuid):
+    tmp_list = get_enabled_extensions_list(module)
+    tmp_list.append(str(uuid))
+    set_extensions(module, tmp_list)
+
+def disable_extension(module, uuid):
+    tmp_set = set(get_enabled_extensions_list(module))
+    tmp_set.remove(str(uuid))
+    set_extensions(module, list(tmp_set))
+
+def get_extension_info(module, name, url, gnome_version):
+    try:
+        info = urllib.request.urlopen(
+            url + '/extension-info/?pk=' + str(name)
+            + '&shell_version=' + gnome_version)
+        info = json.load(info)
+    except Exception as e:
+        module.fail_json(
+            msg="Failure downloading metadata from %s %s" % (url, e))
+    return info
+
+def install_extension(module, url, path, extension_url, uuid):
+    tmp_file = tempfile.TemporaryFile()
+    download_url = url + extension_url
+    try:
+        tmp_file.write(urllib.request.urlopen(download_url).read())
+        zip_file = zipfile.ZipFile(tmp_file)
+        dest_dir = os.path.join(path, uuid)
+        if not os.path.isdir(dest_dir):
+            os.makedirs(dest_dir)
+        zip_file.extractall(dest_dir)
+        tmp_file.close()
+    except Exception as e:
+        module.fail_json(msg="Failure installing the plugin %s" % e)
+
+def remove_extension(module, path, uuid):
+    try:
+        shutil.rmtree(path + uuid)
+    except IOError as e:
+        module.fail_json(msg="failed to remove extension %s" % e)
+
+def get_installed_extension_info(
+    module, path, uuid):
+    try:
+        info = json.load(open(os.path.join(path, uuid, "metadata.json")))
+    except Exception as e:
+        module.fail_json(
+            msg="Failure loading extension on local machine: %s" % e)
+    return info
+
+def main():
+    module = AnsibleModule(
+        argument_spec = dict(
+            state = dict(
+                default='present', choices=['present', 'absent'], type='str'),
+            name  = dict(required=True, type='str'),
+            url   = dict(default='https://extensions.gnome.org', type='str'),
+            enabled = dict(type='bool'),
+            gnome_version = dict(type='str'),
+            gnome_extension_path = dict(required=True, type='str'),
+        ),
+        supports_check_mode=False
+    )
+
+    name = module.params['name']
+    url = module.params['url']
+    path = module.params['gnome_extension_path']
+
+    changed = False
+
+    # Get version of gnome-shell
+    if not module.params['gnome_version']:
+        cmd = [module.get_bin_path('gnome-shell', True)]
+        cmd.append('--version')
+        gnome_version = module.run_command(cmd)[1].split()[-1]
+
+    # Get required information about extension
+    extension_info = get_extension_info(module, name, url, gnome_version)
+    uuid = extension_info['uuid']
+    download_url = extension_info['download_url']
+    old_install_state = get_install_state(module, path, uuid)
+
+    # Depending on state param, install/remove the extension
+    if not old_install_state and module.params['state'] == 'present':
+        changed = not old_install_state
+        install_extension(module, url, path, download_url, uuid)
+    elif old_install_state and module.params['state'] == 'absent':
+        changed = old_install_state
+        remove_extension(module, path, uuid)
+
+    # Depending on enabled param, enable/disable the extension
+    old_value_is_enabled = get_enabled_state(module, uuid)
+
+    if not old_value_is_enabled and module.params['enabled'] is True:
+        changed = not old_value_is_enabled
+        enable_extension(module, uuid)
+    elif old_value_is_enabled and module.params['enabled'] is False:
+        changed = old_value_is_enabled
+        disable_extension(module, uuid)
+
+    module.exit_json(changed=changed, msg=extension_info)
+
+from ansible.module_utils.basic import AnsibleModule
+if __name__ == '__main__':
+    main()

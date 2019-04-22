@@ -1,3 +1,0 @@
-[submodule "library/gnome_shell_extension"]
-	path = library
-	url = https://github.com/AsavarTzeth/ansible-gnome_shell_extension.git
